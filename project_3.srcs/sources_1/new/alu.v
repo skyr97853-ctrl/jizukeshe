@@ -6,7 +6,7 @@ module alu(
     input[31:0] alu_src2,
     input[4:0] wd_i,
     input wreg_i,
-    output[32:0] alu_result,
+    output[31:0] alu_result,
     output[4:0] wd_o,
     output wreg_o,
     
