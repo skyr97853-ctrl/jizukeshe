@@ -112,8 +112,8 @@ module id(
     assign isDelay_o=isDelay_i;
     assign nextIsDelay_o=(inst_beq||inst_bne);
     
-    wire [3:0] reg1_mux;
-    wire [3:0] reg2_mux;
+    wire [31:0] reg1_mux;
+    wire [31:0] reg2_mux;
     assign reg1_mux=((exwreg_b==1)&&(reg1_read_o==1)&&(reg1_addr_o==exwd_b)
     )?(exwdata_b):(
     ((memwreg_b==1)&&(reg1_read_o==1)&&(memwd_b==reg1_addr_o))?
