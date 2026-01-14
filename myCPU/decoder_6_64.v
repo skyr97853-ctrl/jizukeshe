@@ -1,0 +1,14 @@
+`timescale 1ns / 1ps
+
+module decoder_6_64(
+        input wire[5:0] in,
+        output wire[63:0] out
+    );
+            generate
+                genvar i;
+                for(i=0;i<64;i=i+1)
+                begin:dg
+                            assign out[i]=(in==i);
+                end    
+        endgenerate 
+endmodule
