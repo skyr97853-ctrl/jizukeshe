@@ -13,10 +13,10 @@ module pipeline_cpu(
         output wire [31:0] ram_data_i,
         input wire[31:0] ram_data_o,
         
-        // ĞÂÔö½Ó¿ÚÓÃÓÚ SoC ÊÊÅä
-        output wire [3:0] mem_lsop_out, // Êä³ö¸ø¶¥²ã×öĞ´Âß¼­ÅĞ¶Ï
+        // æ–°å¢æ¥å£ç”¨äº SoC é€‚é…
+        output wire [3:0] mem_lsop_out, 
         
-        // Debug ½Ó¿ÚĞÅºÅ
+        // Debug æ¥å£ä¿¡å·
         output wire [31:0] debug_wb_pc,
         output wire debug_wb_rf_wen_bit,
         output wire [4:0] debug_wb_rf_wnum,
@@ -30,19 +30,19 @@ module pipeline_cpu(
     wire branchF_o;
     wire [31:0] branchAddr_o;
 
-    // PC Ä£¿é
+    // PC æ¨¡å—
     pc pc0(rst, clk, rom_addr_o, rom_ce_o, branchF_o, branchAddr_o, stall);
     
     // IF_ID Stage
     wire [31:0] id_inst;
-    wire [31:0] id_pc; // ´Ó IF_ID ³öÀ´µÄ PC
+    wire [31:0] id_pc; 
     
     if_id if_id0(
         .clk(clk),
         .if_inst(rom_inst_i),
         .id_inst(id_inst),
-        .if_pc(rom_addr_o), // ÊäÈëµ±Ç°È¡Ö¸ PC
-        .id_pc(id_pc),      // Êä³ö ID ½×¶Î PC
+        .if_pc(rom_addr_o), 
+        .id_pc(id_pc),      
         .stall(stall)
     );
 
@@ -56,7 +56,7 @@ module pipeline_cpu(
 
     regfile regfile0(re1, raddr1, re2, raddr2, wb_wd, wb_wreg, wb_wdata, rst, clk, rdata1, rdata2);
     
-    // ID ½×¶ÎĞÅºÅ
+    // ID é˜¶æ®µä¿¡å·
     wire [5:0] id_aluop;
     wire [31:0] id_reg1, id_reg2;
     wire [4:0] id_wd;
@@ -83,7 +83,7 @@ module pipeline_cpu(
         .wd_o(id_wd), .wreg(id_wreg),
         .reg2_addr_o(raddr2), .reg2_read_o(re2),
         .reg1_addr_o(raddr1), .reg1_read_o(re1),
-        .pc_i(id_pc), // ID ½×¶ÎÊ¹ÓÃ PC ¼ÆËã·ÖÖ§
+        .pc_i(id_pc), 
         .isDelay_i(isDelay_o456), .isDelay_o(isDelay_o), .nextIsDelay_o(nextIsDelay_o),
         .branchF_o(branchF_o), .branchAddr_o(branchAddr_o),
         .inst_o(id_inst0),
@@ -101,7 +101,7 @@ module pipeline_cpu(
     wire ex_wreg;
     wire exDelay_o;
     wire [31:0] ex_inst;
-    wire [31:0] ex_pc; // ĞÂÔö£ºEX ½×¶Î PC
+    wire [31:0] ex_pc; 
 
     id_ex id_ex0(
         .clk(clk),
@@ -116,8 +116,6 @@ module pipeline_cpu(
         .id_inst0(id_inst0), .id_lsop(id_lsop),
         .ex_inst(ex_inst), .ex_lsop(ex_lsop),
         .stall(stall),
-        
-        // PC ´«µİ
         .id_pc(id_pc), .ex_pc(ex_pc)
     );
 
@@ -130,19 +128,34 @@ module pipeline_cpu(
     wire [31:0] ex_memaddr, ex_reg20;
     wire [3:0] mem_lsop;
     wire [31:0] mem_memaddr, mem_reg2;
-    wire [31:0] mem_pc; // ĞÂÔö£ºMEM ½×¶Î PC
+    wire [31:0] mem_pc; 
 
+    // ------------------------------------------------------------------------
+    // ä¿®æ­£åçš„ ALU å®ä¾‹åŒ–
+    // ------------------------------------------------------------------------
     alu alu0(
-        .clk(clk), .rst(rst),
-        .aluop_i(ex_aluop),
-        .reg1_i(ex_reg1), .reg2_i(ex_reg2),
-        .wd_i(ex_wd), .wreg_i(ex_wreg),
-        .ex_wdata0(ex_wdata0), .ex_wd0(ex_wd0), .ex_wreg0(ex_wreg0),
-        .exDelay_i(exDelay_o), .exDelay_o(exDelay_i),
+        .clk(clk), 
+        .rst(rst),
+        .alu_control(ex_aluop),   // å¯¹åº” alu.v çš„ alu_control
+        .alu_src1(ex_reg1),       // å¯¹åº” alu.v çš„ alu_src1
+        .alu_src2(ex_reg2),       // å¯¹åº” alu.v çš„ alu_src2
+        .wd_i(ex_wd),
+        .wreg_i(ex_wreg),
+        
+        .alu_result(ex_wdata0),   // å¯¹åº” alu.v çš„ alu_resultï¼Œè¾“å‡ºè¿æ¥åˆ° ex_wdata0
+        .wd_o(ex_wd0),            // å¯¹åº” alu.v çš„ wd_o
+        .wreg_o(ex_wreg0),        // å¯¹åº” alu.v çš„ wreg_o
+        
+        .isDelay_i(exDelay_o),    // å¯¹åº” alu.v çš„ isDelay_i
+        .isDelay_o(exDelay_i),    // å¯¹åº” alu.v çš„ isDelay_o
+        
         .inst_i(ex_inst),
-        .lsop_i(ex_lsop), .lsop_o(ex_lsop0),
-        .memaddr_o(ex_memaddr), .reg2_o(ex_reg20)
+        .lsop_i(ex_lsop), 
+        .lsop_o(ex_lsop0),
+        .memaddr_o(ex_memaddr), 
+        .reg2_o(ex_reg20)
     );
+    // ------------------------------------------------------------------------
 
     ex_mem ex_mem0(
         .clk(clk),
@@ -154,15 +167,12 @@ module pipeline_cpu(
         .mem_lsop(mem_lsop),
         .mem_memaddr(mem_memaddr), .mem_reg2(mem_reg2),
         .stall(stall),
-        
-        // PC ´«µİ
         .ex_pc(ex_pc), .mem_pc(mem_pc)
     );
 
     // MEM Stage
     wire isDelay_o1;
     
-    // ½« mem_lsop Êä³ö¸ø¶¥²ã£¬ÓÃÓÚÉú³É×Ö½ÚĞ´Ê¹ÄÜ
     assign mem_lsop_out = mem_lsop;
 
     mem mem0(
@@ -175,19 +185,17 @@ module pipeline_cpu(
     );
 
     // MEM_WB Stage
-    wire [31:0] wb_pc; // ĞÂÔö£ºWB ½×¶Î PC
+    wire [31:0] wb_pc; 
 
     mem_wb mem_wb0(
         .clk(clk),
         .wdata0(mem_wdata0), .mem_wd0(mem_wd0), .mem_wreg0(mem_wreg0),
         .wb_wdata(wb_wdata), .wb_wd(wb_wd), .wb_wreg(wb_wreg),
         .stall(stall),
-        
-        // PC ´«µİ
         .mem_pc(mem_pc), .wb_pc(wb_pc)
     );
 
-    // Á¬½Ó Debug ĞÅºÅ
+    // è¿æ¥ Debug ä¿¡å·
     assign debug_wb_pc = wb_pc;
     assign debug_wb_rf_wen_bit = wb_wreg;
     assign debug_wb_rf_wnum = wb_wd;
