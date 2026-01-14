@@ -1,24 +1,5 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2025/11/20 10:50:57
-// Design Name: 
-// Module Name: ex_mem
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
+`include "defines.v"
 
 module ex_mem(
         input clk,
@@ -27,26 +8,28 @@ module ex_mem(
         input ex_wreg0,
         output reg [31:0]mem_data,
         output reg [4:0]mem_wd,
+ 
         output reg mem_wreg,
         
         input wire exDelay_i,
         output reg memDelay_o,
         
-        input wire[1:0]ex_lsop0,
+        input wire[3:0]ex_lsop0,  // Changed to 4 bits
         input wire[31:0]ex_memaddr,
         input wire[31:0]ex_reg20,
-        output reg[1:0]mem_lsop,
+        output reg[3:0]mem_lsop,  // Changed to 4 bits
         output reg[31:0]mem_memaddr,
         output reg[31:0]mem_reg2,
+ 
         input [5:0]stall
     );
-        always@(posedge clk) begin
+    always@(posedge clk) begin
             if(stall[3]==1&&stall[4]==0)begin
                 mem_data<=32'b0;
                 mem_wd<=5'b0;
                 mem_wreg<=1'b0;
                 memDelay_o<=1'b0;
-                mem_lsop<=2'b0;
+                mem_lsop<=4'b0;   // Updated width
                 mem_memaddr<=32'b0;
                 mem_reg2<=32'b0;            
             end else if(stall[3]==0)begin
