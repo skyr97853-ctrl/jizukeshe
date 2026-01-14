@@ -24,23 +24,14 @@ module pipeline_cpu(
     branchF_o,branchAddr_o,stall);
     
     wire [31:0] id_inst;
-    wire [31:0] pc_i; // Connect PC to ID
-    assign pc_i = rom_addr_o; // Assuming IF/ID passes PC or we take current (delay slot handling might need PC pipeline, but usually passed via if_id)
-    // Wait, pc_i in id is usually ID stage PC. rom_addr_o is IF stage PC.
-    // The provided code snippet had "input[31:0] pc_i" in ID but didn't clearly show where it came from in pipeline_cpu.
-    // Standard pipeline passes PC through IF/ID.
-    // Let's assume if_id passes PC.
+    // IF_ID Stage
+    // Assuming if_id passes PC (or related address) for link instructions. 
+    // Based on typical connection:
     wire [31:0] id_pc;
-    
     if_id if_id0(clk,rom_inst_i,id_inst,
-    rom_addr_o,id_pc,stall); // Modified if_id to pass PC if supported, else use rom_addr_o (which is next PC). 
-    // *Constraint Check*: I don't have if_id.v code. 
-    // However, the original pipeline_cpu.v had:
-    // if_id if_id0(clk,rom_inst_i,id_inst, rom_addr_o,pc_i,stall); 
-    // This implies if_id outputs `pc_i` (the 5th port). 
-    // So `id_pc` (wire) connects to `pc_i` (port) of if_id.
+    rom_addr_o,id_pc,stall);
 
-    //regfile
+    // Regfile
     wire re1;
     wire [4:0]raddr1;
     wire re2;
@@ -54,13 +45,13 @@ module pipeline_cpu(
     regfile regfile0(re1,raddr1,re2,raddr2,wb_wd,wb_wreg,
     wb_wdata,rst,clk,rdata1,rdata2);
     
-    //id_ex
-    wire [5:0]id_aluop; // Expanded
+    // ID_EX Stage
+    wire [5:0]id_aluop;    // 6 bits
     wire [31:0]id_reg1;
     wire [31:0]id_reg2;
     wire [4:0]id_wd;
     wire id_wreg;
-    wire [5:0]ex_aluop; // Expanded
+    wire [5:0]ex_aluop;    // 6 bits
     wire [31:0]ex_reg1;
     wire [31:0]ex_reg2;
     wire [4:0]ex_wd;
@@ -68,21 +59,21 @@ module pipeline_cpu(
     wire exDelay_o;
     wire isDelay_o456;
     wire[31:0] id_inst0;
-    wire[3:0] id_lsop; // Expanded
+    wire[3:0] id_lsop;     // 4 bits
     wire[31:0] ex_inst;
-    wire[3:0] ex_lsop; // Expanded
+    wire[3:0] ex_lsop;     // 4 bits
 
     wire isDelay_o;
     wire nextIsDelay_o;
     
-    // Wire declarations for forwarding in ID
+    // Forwarding/Hazard Logic Wires
     wire [31:0] mem_wdata0; 
     wire [4:0] mem_wd0;
     wire mem_wreg0;
     wire [31:0] ex_wdata0;
     wire [4:0] ex_wd0;
     wire ex_wreg0;
-    wire [3:0] ex_lsop0; // Expanded
+    wire [3:0] ex_lsop0;   // 4 bits
 
     id id0(id_inst,rdata1,rdata2,id_aluop,id_reg1,id_reg2,
     id_wd,id_wreg,raddr2,re2,raddr1,re1,id_pc,isDelay_o456,
@@ -96,7 +87,7 @@ module pipeline_cpu(
     exDelay_o,isDelay_o456,id_inst0,id_lsop,
     ex_inst,ex_lsop,stall);
 
-    //ex_mem
+    // EX_MEM Stage
     wire [31:0]mem_data;
     wire [4:0]mem_wd;
     wire mem_wreg;
@@ -105,11 +96,11 @@ module pipeline_cpu(
     
     wire[31:0]ex_memaddr;
     wire[31:0]ex_reg20;
-    wire [3:0]mem_lsop; // Expanded
+    wire [3:0]mem_lsop;    // 4 bits
     wire[31:0]mem_memaddr;
     wire[31:0]mem_reg2;
 
-    // ALU needs clk/rst now
+    // ALU (Note: added clk and rst for HILO regs)
     alu alu0(clk, rst, ex_aluop,ex_reg1,ex_reg2,ex_wd,
     ex_wreg,ex_wdata0,ex_wd0,ex_wreg0,
     exDelay_o,exDelay_i,ex_inst,ex_lsop,
@@ -120,23 +111,34 @@ module pipeline_cpu(
     exDelay_i,memDelay_o,ex_lsop0,ex_memaddr,
     ex_reg20,mem_lsop,mem_memaddr,mem_reg2,stall);
     
-    //mem_wb
-    wire [31:0] mem_wdata_out; // Data from MEM stage to MEM_WB
+    // MEM Stage
+    wire isDelay_o1;
+    // Corrected mem instantiation (16 arguments)
+    // mem_wdata0 is the output from MEM stage to WB stage (and forwarding)
+    mem mem0(
+        .wdata_i(mem_data),
+        .wd_i(mem_wd),
+        .wreg_i(mem_wreg),
+        .wdata_o(mem_wdata0),
+        .wd_o(mem_wd0),
+        .wreg_o(mem_wreg0),
+        
+        .isDelay_i(memDelay_o),
+        .isDelay_o1(isDelay_o1),
+        
+        .lsop_i(mem_lsop),
+        .memaddr_i(mem_memaddr),
+        .reg2_i(mem_reg2),
+        .mem_data_i(ram_data_o),
+        
+        .memaddr_o(ram_addr_o),
+        .memwe_o(ram_we_o),
+        .memce_o(ram_ce_o),
+        .memdata_o(ram_data_i)
+    );
     
-    mem mem0(mem_data,mem_wd,mem_wreg,
-    mem_wdata0,mem_wd0,mem_wreg0,memDelay_o,
-    isDelay_o1,mem_lsop,mem_memaddr,mem_reg2,
-    ram_data_o,ram_addr_o,ram_we_o,ram_ce_o,
-    ram_data_i, mem_wdata_out); // Added output port mem_wdata_out (mapped to mem_wdata0 in previous naming but logic is inside mem)
-    // Wait, check mem instantiation in original:
-    // mem mem0(mem_data, ..., mem_wdata0, ...);
-    // In original mem.v: output wdata_o. 
-    // So mem_wdata0 is the output of mem module.
-    
+    // MEM_WB Stage
     mem_wb mem_wb0(clk,mem_wdata0,mem_wd0,
     mem_wreg0,wb_wdata,wb_wd,wb_wreg,stall);
-    
-    // The previous mem0 instantiation in original file seemed to match ports. 
-    // I kept the structure but just need to ensure `lsop` width is consistent.
 
 endmodule
