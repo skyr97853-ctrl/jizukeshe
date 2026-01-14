@@ -17,7 +17,7 @@ module pc(
     end
     always@(posedge clk)begin
         if(ce==0)
-            pc<=0;
+            pc<=32'hbfc00000;
         else if(stall[0]==0) begin
         if(branchF==1)
             pc<=branchAddr;
